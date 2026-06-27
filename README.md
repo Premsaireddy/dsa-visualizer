@@ -1,4 +1,4 @@
-# DSA Visualizer
+# DSA Visualizer [App link](https://dsa-visualizer-1vu.vercel.app/)
 
 An interactive, beginner-friendly visualizer for common Data Structures and Algorithms, built with React, Vite, and Tailwind CSS.
 
