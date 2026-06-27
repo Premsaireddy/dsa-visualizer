@@ -67,7 +67,6 @@ dsa-visualizer/
 │   ├── main.jsx       # React entry point
 │   └── index.css      # Tailwind directives
 ├── package.json
-├── vite.config.js
 ├── tailwind.config.js
 └── postcss.config.js
 ```

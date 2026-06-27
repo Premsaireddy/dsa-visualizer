@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { Play, Pause, RotateCcw, StepForward, StepBack, Search, Layers, List, ArrowRightLeft } from "lucide-react";
+import { Play, Pause, RotateCcw, StepForward, StepBack, Search, Layers, List, ArrowRightLeft, Zap } from "lucide-react";
 
 const algorithms = [
   { id: "bubble", name: "Bubble Sort", type: "sort" },
@@ -111,8 +111,9 @@ function bubbleSortSteps(input) {
     for (let j = 0; j < arr.length - i - 1; j++) {
       steps.push(makeStep(arr, `Compare ${arr[j]} and ${arr[j + 1]}.`, [j, j + 1], [], null, 1));
       if (arr[j] > arr[j + 1]) {
+        const [bigger, smaller] = [arr[j], arr[j + 1]];
         [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
-        steps.push(makeStep(arr, `Swap because ${arr[j + 1]} is greater than ${arr[j]}.`, [j, j + 1], [], null, 3));
+        steps.push(makeStep(arr, `Swap: ${bigger} > ${smaller}, so move ${bigger} right.`, [j, j + 1], [], null, 3));
       }
     }
     steps.push(makeStep(arr, `Position ${arr.length - i - 1} is now fixed.`, [], Array.from({ length: i + 1 }, (_, k) => arr.length - 1 - k), null, 0));
@@ -246,14 +247,21 @@ function createSteps(algorithm, input, target) {
 
 function BarVisualizer({ step, mode }) {
   const max = Math.max(...step.array, 1);
-  if (mode === "structure") {
+  if (mode === "stack" || mode === "queue") {
     return (
-      <div className="flex min-h-64 items-end justify-center gap-3 rounded-2xl bg-slate-50 p-6">
-        {step.array.length === 0 ? <p className="text-slate-500">Empty</p> : step.array.map((value, index) => (
-          <div key={`${value}-${index}`} className={`flex h-14 min-w-14 items-center justify-center rounded-xl border text-lg font-bold shadow-sm ${step.active.includes(index) ? "scale-110 border-indigo-500 bg-indigo-100 text-indigo-700" : "border-slate-200 bg-white text-slate-700"}`}>
-            {value}
-          </div>
-        ))}
+      <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-2xl bg-slate-50 p-6">
+        <div className="flex items-end gap-3">
+          {step.array.length === 0 ? <p className="text-slate-500">Empty</p> : step.array.map((value, index) => (
+            <div key={index} className={`flex h-14 min-w-14 items-center justify-center rounded-xl border text-lg font-bold shadow-sm ${step.active.includes(index) ? "scale-110 border-indigo-500 bg-indigo-100 text-indigo-700" : "border-slate-200 bg-white text-slate-700"}`}>
+              {value}
+            </div>
+          ))}
+        </div>
+        {step.array.length > 0 && (
+          mode === "stack"
+            ? <p className="text-xs font-medium text-slate-400">← BOTTOM &nbsp;|&nbsp; TOP →</p>
+            : <p className="text-xs font-medium text-slate-400">DEQUEUE ← FRONT &nbsp;&nbsp; REAR → ENQUEUE</p>
+        )}
       </div>
     );
   }
@@ -265,7 +273,7 @@ function BarVisualizer({ step, mode }) {
         const sorted = step.sorted.includes(index);
         const found = step.found === index;
         return (
-          <div key={`${value}-${index}`} className="flex flex-col items-center gap-2">
+          <div key={index} className="flex flex-col items-center gap-2">
             <div
               className={`flex w-10 items-end justify-center rounded-t-xl text-xs font-bold text-white transition-all duration-300 sm:w-14 ${found ? "bg-emerald-500" : sorted ? "bg-green-500" : active ? "bg-indigo-500" : "bg-slate-400"}`}
               style={{ height: `${Math.max(35, (value / max) * 220)}px` }}
@@ -287,6 +295,7 @@ export default function App() {
   const [steps, setSteps] = useState(() => bubbleSortSteps([8, 3, 5, 1, 9, 2]));
   const [current, setCurrent] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState(900);
 
   const selected = algorithms.find((item) => item.id === algorithm);
   const info = details[algorithm];
@@ -301,9 +310,9 @@ export default function App() {
       setPlaying(false);
       return;
     }
-    const timer = setTimeout(() => setCurrent((x) => x + 1), 900);
+    const timer = setTimeout(() => setCurrent((x) => x + 1), speed);
     return () => clearTimeout(timer);
-  }, [playing, current, steps.length]);
+  }, [playing, current, steps.length, speed]);
 
   function run() {
     const nextSteps = createSteps(algorithm, numbers, target);
@@ -338,7 +347,7 @@ export default function App() {
         <main className="grid gap-6 lg:grid-cols-[360px_1fr]">
           <aside className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <label className="text-sm font-semibold text-slate-700">Choose algorithm</label>
-            <select value={algorithm} onChange={(e) => { setAlgorithm(e.target.value); setPlaying(false); }} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 outline-none focus:ring-2 focus:ring-indigo-300">
+            <select value={algorithm} onChange={(e) => { const a = e.target.value; setAlgorithm(a); setPlaying(false); setSteps(createSteps(a, numbers, target)); setCurrent(0); }} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 outline-none focus:ring-2 focus:ring-indigo-300">
               {algorithms.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
 
@@ -353,8 +362,17 @@ export default function App() {
               </>
             )}
 
+            <div className="mt-5">
+              <label className="text-sm font-semibold text-slate-700">Speed</label>
+              <div className="mt-2 flex items-center gap-3">
+                <span className="text-xs text-slate-500">Slow</span>
+                <input type="range" min={200} max={2000} step={100} value={2200 - speed} onChange={(e) => setSpeed(2200 - Number(e.target.value))} className="w-full accent-indigo-600" />
+                <span className="text-xs text-slate-500">Fast</span>
+              </div>
+            </div>
+
             <div className="mt-6 grid grid-cols-2 gap-3">
-              <button onClick={run} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white shadow-sm hover:bg-indigo-700"><Play size={18} />Run</button>
+              <button onClick={run} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white shadow-sm hover:bg-indigo-700"><Zap size={18} />Run</button>
               <button onClick={reset} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-200"><RotateCcw size={18} />Reset</button>
               <button onClick={() => setCurrent((x) => Math.max(0, x - 1))} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-200"><StepBack size={18} />Previous</button>
               <button onClick={() => setCurrent((x) => Math.min(steps.length - 1, x + 1))} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-200"><StepForward size={18} />Next</button>
@@ -368,11 +386,16 @@ export default function App() {
               <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-2xl font-bold">{selected.name}</h2>
-                  <p className="text-slate-600">Step {current + 1} of {steps.length}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-slate-600">Step {current + 1} of {steps.length}</p>
+                    {current === steps.length - 1 && steps.length > 1 && (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">Completed</span>
+                    )}
+                  </div>
                 </div>
                 <div className="rounded-full bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700">{info.complexity}</div>
               </div>
-              <BarVisualizer step={step} mode={selected.type === "structure" ? "structure" : "array"} />
+              <BarVisualizer step={step} mode={selected.type === "structure" ? selected.id : "array"} />
               <div className="mt-4 rounded-2xl bg-slate-900 p-4 text-white">
                 <p className="text-sm uppercase tracking-wide text-indigo-200">Explanation</p>
                 <p className="mt-1 text-lg font-medium">{step.explanation}</p>
